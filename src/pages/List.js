@@ -1,13 +1,11 @@
 import React, { Component } from "react";
+import { connect } from "react-redux";
+import { Link } from "react-router-dom";
 
 class List extends Component {
   constructor() {
     super();
     this.state = {
-      allpeople: [],
-      people: [],
-      films: [],
-      species: [],
       filters: { films: "", species: "", andor: "and" },
     };
   }
@@ -29,16 +27,17 @@ class List extends Component {
   }
 
   async componentDidMount() {
-    const people = await this.getData("https://swapi.dev/api/people");
-    const films = await this.getData("https://swapi.dev/api/films");
-    const species = await this.getData("https://swapi.dev/api/species");
+    if (this.props.people.length === 0) {
+      const people = await this.getData("https://swapi.dev/api/people");
+      const films = await this.getData("https://swapi.dev/api/films");
+      const species = await this.getData("https://swapi.dev/api/species");
+      const starships = await this.getData("https://swapi.dev/api/starships");
 
-    this.setState({
-      allpeople: people,
-      people,
-      films,
-      species,
-    });
+      this.props.dispatch({ type: "ADD_PEOPLE", payload: people });
+      this.props.dispatch({ type: "ADD_FILMS", payload: films });
+      this.props.dispatch({ type: "ADD_SPECIES", payload: species });
+      this.props.dispatch({ type: "ADD_STARSHIPS", payload: starships });
+    }
   }
 
   handleChange = (e) => {
@@ -51,18 +50,32 @@ class List extends Component {
     this.setState({
       ...this.state,
       filters: { ...this.state.filters, [e.target.name]: e.target.value },
-      people: this.state.allpeople.filter((p) =>
-        filters.andor == "and"
-          ? (filters.films ? p.films.includes(filters.films) : true) &&
-            (filters.species ? p.species.includes(filters.species) : true)
-          : (filters.films ? p.films.includes(filters.films) : true) ||
-            (filters.species ? p.species.includes(filters.species) : true)
-      ),
     });
   };
 
+  renderPeople = () => {
+    const { filters } = this.state;
+    const people = this.props.people.filter((p) =>
+      filters.andor === "and"
+        ? (filters.films ? p.films.includes(filters.films) : true) &&
+          (filters.species ? p.species.includes(filters.species) : true)
+        : (filters.films ? p.films.includes(filters.films) : true) ||
+          (filters.species ? p.species.includes(filters.species) : true)
+    );
+
+    return (
+      <ul>
+        {people.map((char, index) => (
+          <li key={index}>
+            <Link to={`/${index}`}>{char.name}</Link>
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   render() {
-    const { people, films, species } = this.state;
+    const { films, species } = this.props;
 
     return (
       <div>
@@ -103,16 +116,16 @@ class List extends Component {
             </option>
           ))}
         </select>
-        <ul>
-          {people.map((char, index) => (
-            <li key={index + 1}>
-              <a href={index + 1}>{char.name}</a>
-            </li>
-          ))}
-        </ul>
+        {this.renderPeople()}
       </div>
     );
   }
 }
 
-export default List;
+const mapStateToProps = (state) => ({
+  people: state.people,
+  films: state.films,
+  species: state.species,
+});
+
+export default connect(mapStateToProps)(List);
